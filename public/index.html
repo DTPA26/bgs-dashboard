@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BGS Ltd Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: #0f172a; color: white; font-family: system-ui, -apple-system, sans-serif; }
+    .container { max-width: 80rem; margin: 0 auto; padding: 2rem; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+    .header h1 { font-size: 2.25rem; font-weight: bold; margin: 0 0 0.5rem 0; }
+    .header p { font-size: 0.875rem; color: #94a3b8; margin: 0; }
+    .button { padding: 0.5rem 1rem; border-radius: 0.375rem; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; }
+    .button-primary { background: #3b82f6; color: white; }
+    .button-primary:hover { background: #2563eb; }
+    .button-success { background: #16a34a; color: white; }
+    .button-success:hover { background: #15803d; }
+    .button-theme { background: #1e293b; color: white; }
+    .button-theme:hover { background: #334155; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .kpi-card { padding: 1rem; border-radius: 0.5rem; background: #1e293b; }
+    .kpi-label { font-size: 0.75rem; font-weight: 600; opacity: 0.7; margin-bottom: 0.25rem; }
+    .kpi-value { font-size: 1.875rem; font-weight: bold; margin-bottom: 0.5rem; }
+    .kpi-change { font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; }
+    .positive { color: #4ade80; }
+    .negative { color: #f87171; }
+    .warning { color: #facc15; }
+    .critical { border: 1px solid #dc2626; }
+    .warning-border { border: 1px solid #eab308; }
+    .success-border { border: 1px solid #16a34a; }
+    .card { padding: 1.5rem; border-radius: 0.5rem; background: #1e293b; margin-bottom: 1.5rem; }
+    .card h2 { margin-top: 0; margin-bottom: 1rem; font-size: 1.125rem; }
+    .chart-container { width: 100%; margin-bottom: 1rem; }
+    .simple-chart { display: flex; align-items: flex-end; justify-content: space-around; height: 200px; }
+    .bar { background: #ef4444; border-radius: 0.25rem 0.25rem 0 0; min-width: 20px; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
+    .form-group input, .form-group textarea { padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #334155; background: #0f172a; color: white; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #3b82f6; }
+    .button-group-form { display: flex; gap: 0.75rem; margin-top: 1rem; }
+    .button-group-form button { flex: 1; }
+    .table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .table th { text-align: left; padding: 0.5rem; border-bottom: 1px solid #334155; font-weight: 600; }
+    .table td { padding: 0.5rem; border-bottom: 1px solid #334155; }
+    .table th:not(:first-child), .table td:not(:first-child) { text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>BGS Ltd Dashboard</h1>
+        <p>Weekly Financial Metrics Tracker</p>
+      </div>
+      <button class="button button-primary" onclick="exportCSV()">📥 Export CSV</button>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="card">
+      <h2>Weekly Fuel Costs</h2>
+      <div class="simple-chart" id="fuelChart"></div>
+    </div>
+
+    <div class="card">
+      <button class="button button-success" onclick="toggleForm()">+ Add This Week's Data</button>
+      <div id="entryForm" style="display: none; margin-top: 1.5rem;">
+        <h3 style="margin-top: 0;">Enter Weekly Metrics</h3>
+        <form id="dataForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="formDate" required>
+            </div>
+            <div class="form-group">
+              <label>HSBC Balance (£)</label>
+              <input type="number" id="formHsbc" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label>Capital On Tap (£)</label>
+              <input type="number" id="formCapitalOnTap" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label>HSBC CC (£)</label>
+              <input type="number" id="formHsbcCc" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label>Capital One (£)</label>
+              <input type="number" id="formCapitalOne" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label>Fuel Cost (£)</label>
+              <input type="number" id="formFuel" step="0.01" placeholder="0.00">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: 1rem;">
+            <label>Notes (Optional)</label>
+            <textarea id="formNotes" rows="2" placeholder="e.g., Maeve payment made, holiday notes, etc."></textarea>
+          </div>
+          <div class="button-group-form">
+            <button type="submit" class="button button-primary">Save Entry</button>
+            <button type="button" class="button button-theme" onclick="toggleForm()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Historical Data (Last 10 Weeks)</h2>
+      <div style="overflow-x: auto;">
+        <table class="table" id="dataTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>HSBC</th>
+              <th>Cap On Tap</th>
+              <th>HSBC CC</th>
+              <th>Capital One</th>
+              <th>Fuel</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const initialData = [
+      { date: '2025-12-11', hsbc: 16136.75, capitalOnTap: 22034.42, hsbc_cc: 4282.43, capitalOne: 43.57, fuel: 355.01, notes: '' },
+      { date: '2025-12-18', hsbc: 71469, capitalOnTap: 46742, hsbc_cc: 5023, capitalOne: 47.56, fuel: 485.4, notes: '' },
+      { date: '2025-12-25', hsbc: 65939.2, capitalOnTap: 0, hsbc_cc: 0, capitalOne: 0, fuel: 454.47, notes: '' },
+      { date: '2026-01-01', hsbc: 43417.23, capitalOnTap: 0, hsbc_cc: 0, capitalOne: 0, fuel: 361.45, notes: '' },
+      { date: '2026-01-08', hsbc: 33170.78, capitalOnTap: 0, hsbc_cc: 0, capitalOne: 0, fuel: 196.77, notes: '' },
+      { date: '2026-01-15', hsbc: 19750.37, capitalOnTap: 15069.25, hsbc_cc: 9276.13, capitalOne: 305.06, fuel: 236.18, notes: '' },
+      { date: '2026-01-22', hsbc: 1315.26, capitalOnTap: 8287, hsbc_cc: 9678, capitalOne: 355, fuel: 486.18, notes: '' },
+      { date: '2026-01-29', hsbc: -19486, capitalOnTap: 8774.17, hsbc_cc: 4254.13, capitalOne: 355.05, fuel: 264.27, notes: '' },
+      { date: '2026-02-05', hsbc: 15267, capitalOnTap: 18456, hsbc_cc: 5674, capitalOne: 543, fuel: 232.23, notes: '' },
+    ];
+
+    function getData() {
+      const saved = localStorage.getItem('bgs_dashboard_data');
+      return saved ? JSON.parse(saved) : initialData;
+    }
+
+    function saveData(data) {
+      localStorage.setItem('bgs_dashboard_data', JSON.stringify(data));
+    }
+
+    function formatCurrency(value) {
+      if (!value) return '£0.00';
+      return '£' + parseFloat(value).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function toggleForm() {
+      const form = document.getElementById('entryForm');
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function render() {
+      const data = getData();
+      if (data.length === 0) return;
+
+      const latest = data[data.length - 1];
+      const previous = data.length > 1 ? data[data.length - 2] : null;
+      const hsbcChange = previous ? latest.hsbc - previous.hsbc : 0;
+      const fuelAvg = (data.reduce((sum, d) => sum + (d.fuel || 0), 0) / data.length).toFixed(2);
+      const liquidCash = latest.hsbc + latest.capitalOnTap;
+      const weeksOfCash = (liquidCash / 5000).toFixed(1);
+
+      const kpiGrid = document.getElementById('kpiGrid');
+      kpiGrid.innerHTML = `
+        <div class="kpi-card">
+          <div class="kpi-label">HSBC Balance</div>
+          <div class="kpi-value">${formatCurrency(latest.hsbc)}</div>
+          <div class="kpi-change ${hsbcChange > 0 ? 'positive' : 'negative'}">${hsbcChange > 0 ? '↑' : '↓'} ${formatCurrency(hsbcChange)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Liquid Cash</div>
+          <div class="kpi-value">${formatCurrency(liquidCash)}</div>
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.5rem;">HSBC + Capital On Tap</div>
+        </div>
+        <div class="kpi-card ${weeksOfCash < 2 ? 'critical' : weeksOfCash < 4 ? 'warning-border' : 'success-border'}">
+          <div class="kpi-label">Weeks of Cash</div>
+          <div class="kpi-value">${weeksOfCash}w</div>
+          <div class="kpi-change ${weeksOfCash < 2 ? 'negative' : weeksOfCash < 4 ? 'warning' : 'positive'}">${weeksOfCash < 2 ? '⚠️ Critical' : weeksOfCash < 4 ? '⚠️ Caution' : '✓ Healthy'}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Weekly Fuel</div>
+          <div class="kpi-value">${formatCurrency(fuelAvg)}</div>
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.5rem;">Last ${data.length} weeks</div>
+        </div>
+      `;
+
+      const maxFuel = Math.max(...data.map(d => d.fuel || 0));
+      const fuelChart = document.getElementById('fuelChart');
+      fuelChart.innerHTML = data.slice(-12).map(d => {
+        const height = (d.fuel / maxFuel) * 150;
+        return `<div style="display: flex; flex-direction: column; align-items: center; flex: 1;"><div class="bar" style="height: ${height}px; margin-bottom: 0.5rem;"></div><div style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(d.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</div></div>`;
+      }).join('');
+
+      const tableBody = document.getElementById('tableBody');
+      tableBody.innerHTML = data.slice(-10).reverse().map(d => `
+        <tr>
+          <td>${new Date(d.date).toLocaleDateString('en-GB')}</td>
+          <td>${formatCurrency(d.hsbc)}</td>
+          <td>${formatCurrency(d.capitalOnTap)}</td>
+          <td>${formatCurrency(d.hsbc_cc)}</td>
+          <td>${formatCurrency(d.capitalOne)}</td>
+          <td>${formatCurrency(d.fuel)}</td>
+          <td style="text-align: left; font-size: 0.75rem; opacity: 0.7;">${d.notes}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('dataForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = getData();
+      const entry = {
+        date: document.getElementById('formDate').value,
+        hsbc: parseFloat(document.getElementById('formHsbc').value) || 0,
+        capitalOnTap: parseFloat(document.getElementById('formCapitalOnTap').value) || 0,
+        hsbc_cc: parseFloat(document.getElementById('formHsbcCc').value) || 0,
+        capitalOne: parseFloat(document.getElementById('formCapitalOne').value) || 0,
+        fuel: parseFloat(document.getElementById('formFuel').value) || 0,
+        notes: document.getElementById('formNotes').value
+      };
+      const idx = data.findIndex(d => d.date === entry.date);
+      if (idx >= 0) data[idx] = entry;
+      else data.push(entry);
+      data.sort((a, b) => new Date(a.date) - new Date(b.date));
+      saveData(data);
+      document.getElementById('entryForm').style.display = 'none';
+      document.getElementById('dataForm').reset();
+      document.getElementById('formDate').valueAsDate = new Date();
+      render();
+    });
+
+    function exportCSV() {
+      const data = getData();
+      const headers = ['Date', 'HSBC_Balance', 'Capital_On_Tap', 'HSBC_CC', 'Capital_One', 'Fuel_Cost', 'Notes'];
+      const rows = data.map(d => [d.date, d.hsbc, d.capitalOnTap, d.hsbc_cc, d.capitalOne, d.fuel, d.notes]);
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BGS-Dashboard-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    document.getElementById('formDate').valueAsDate = new Date();
+    render();
+  </script>
+</body>
+</html>
