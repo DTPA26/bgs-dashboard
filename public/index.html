@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BGS Ltd Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; background: #0f172a; color: white; font-family: system-ui, -apple-system, sans-serif; }
@@ -31,9 +32,13 @@
     .success-border { border: 1px solid #16a34a; }
     .card { padding: 1.5rem; border-radius: 0.5rem; background: #1e293b; margin-bottom: 1.5rem; }
     .card h2 { margin-top: 0; margin-bottom: 1rem; font-size: 1.125rem; }
-    .chart-container { width: 100%; margin-bottom: 1rem; }
-    .simple-chart { display: flex; align-items: flex-end; justify-content: space-around; height: 200px; }
-    .bar { background: #ef4444; border-radius: 0.25rem 0.25rem 0 0; min-width: 20px; }
+    .chart-container { position: relative; height: 300px; width: 100%; margin-bottom: 1rem; }
+    .gauge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .gauge { text-align: center; padding: 1rem; background: #0f172a; border-radius: 0.375rem; }
+    .gauge-label { font-size: 0.75rem; font-weight: 600; opacity: 0.7; margin-bottom: 0.5rem; }
+    .gauge-value { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }
+    .gauge-bar { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+    .gauge-fill { height: 100%; background: #3b82f6; transition: background-color 0.3s; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
     .form-group { display: flex; flex-direction: column; }
     .form-group label { font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
@@ -60,8 +65,18 @@
     <div class="kpi-grid" id="kpiGrid"></div>
 
     <div class="card">
-      <h2>Weekly Fuel Costs</h2>
-      <div class="simple-chart" id="fuelChart"></div>
+      <h2>Credit Facility Utilization</h2>
+      <div class="gauge-grid" id="gaugeGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>Account Balances Trend</h2>
+      <div class="chart-container"><canvas id="balancesChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Weekly Fuel Costs with Average</h2>
+      <div class="chart-container"><canvas id="fuelChart"></canvas></div>
     </div>
 
     <div class="card">
@@ -129,6 +144,9 @@
   </div>
 
   <script>
+    let balancesChartInstance = null;
+    let fuelChartInstance = null;
+
     const initialData = [
       { date: '2025-12-11', hsbc: 16136.75, capitalOnTap: 22034.42, hsbc_cc: 4282.43, capitalOne: 43.57, fuel: 355.01, notes: '' },
       { date: '2025-12-18', hsbc: 71469, capitalOnTap: 46742, hsbc_cc: 5023, capitalOne: 47.56, fuel: 485.4, notes: '' },
@@ -171,6 +189,7 @@
       const liquidCash = latest.hsbc + latest.capitalOnTap;
       const weeksOfCash = (liquidCash / 5000).toFixed(1);
 
+      // KPI Cards
       const kpiGrid = document.getElementById('kpiGrid');
       kpiGrid.innerHTML = `
         <div class="kpi-card">
@@ -195,13 +214,137 @@
         </div>
       `;
 
-      const maxFuel = Math.max(...data.map(d => d.fuel || 0));
-      const fuelChart = document.getElementById('fuelChart');
-      fuelChart.innerHTML = data.slice(-12).map(d => {
-        const height = (d.fuel / maxFuel) * 150;
-        return `<div style="display: flex; flex-direction: column; align-items: center; flex: 1;"><div class="bar" style="height: ${height}px; margin-bottom: 0.5rem;"></div><div style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(d.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</div></div>`;
-      }).join('');
+      // Credit utilization gauges
+      const gaugeGrid = document.getElementById('gaugeGrid');
+      const cotMaxLimit = 50000;
+      const hsbcCcMaxLimit = 15000;
+      const capitalOneMaxLimit = 5000;
+      
+      const cotUtil = ((latest.capitalOnTap / cotMaxLimit) * 100).toFixed(0);
+      const hsbcCcUtil = ((latest.hsbc_cc / hsbcCcMaxLimit) * 100).toFixed(0);
+      const capitalOneUtil = ((latest.capitalOne / capitalOneMaxLimit) * 100).toFixed(0);
 
+      const getGaugeColor = (util) => {
+        const utilNum = parseFloat(util);
+        if (utilNum >= 80) return '#dc2626';
+        if (utilNum >= 60) return '#f59e0b';
+        return '#3b82f6';
+      };
+
+      gaugeGrid.innerHTML = `
+        <div class="gauge">
+          <div class="kpi-label">Capital On Tap</div>
+          <div class="gauge-value">${cotUtil}%</div>
+          <div class="gauge-bar"><div class="gauge-fill" style="width: ${cotUtil}%; background-color: ${getGaugeColor(cotUtil)};"></div></div>
+          <div style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">${formatCurrency(latest.capitalOnTap)} / ${formatCurrency(cotMaxLimit)}</div>
+        </div>
+        <div class="gauge">
+          <div class="kpi-label">HSBC CC</div>
+          <div class="gauge-value">${hsbcCcUtil}%</div>
+          <div class="gauge-bar"><div class="gauge-fill" style="width: ${hsbcCcUtil}%; background-color: ${getGaugeColor(hsbcCcUtil)};"></div></div>
+          <div style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">${formatCurrency(latest.hsbc_cc)} / ${formatCurrency(hsbcCcMaxLimit)}</div>
+        </div>
+        <div class="gauge">
+          <div class="kpi-label">Capital One</div>
+          <div class="gauge-value">${capitalOneUtil}%</div>
+          <div class="gauge-bar"><div class="gauge-fill" style="width: ${capitalOneUtil}%; background-color: ${getGaugeColor(capitalOneUtil)};"></div></div>
+          <div style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">${formatCurrency(latest.capitalOne)} / ${formatCurrency(capitalOneMaxLimit)}</div>
+        </div>
+      `;
+
+      // Balances trend chart
+      const balancesCtx = document.getElementById('balancesChart').getContext('2d');
+      if (balancesChartInstance) balancesChartInstance.destroy();
+      
+      balancesChartInstance = new Chart(balancesCtx, {
+        type: 'line',
+        data: {
+          labels: data.map(d => new Date(d.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })),
+          datasets: [
+            {
+              label: 'HSBC',
+              data: data.map(d => d.hsbc),
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.4,
+              fill: false
+            },
+            {
+              label: 'Capital On Tap',
+              data: data.map(d => d.capitalOnTap),
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              tension: 0.4,
+              fill: false
+            },
+            {
+              label: 'HSBC CC',
+              data: data.map(d => d.hsbc_cc),
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              tension: 0.4,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: 'rgba(255,255,255,0.7)' } }
+          },
+          scales: {
+            y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+            x: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+          }
+        }
+      });
+
+      // Fuel costs chart with average line
+      const fuelCtx = document.getElementById('fuelChart').getContext('2d');
+      if (fuelChartInstance) fuelChartInstance.destroy();
+      
+      const fuelAvgValue = parseFloat(fuelAvg);
+      const avgLineData = data.map(() => fuelAvgValue);
+      
+      fuelChartInstance = new Chart(fuelCtx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => new Date(d.date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })),
+          datasets: [
+            {
+              label: 'Weekly Fuel Cost',
+              data: data.map(d => d.fuel),
+              backgroundColor: '#ef4444',
+              borderRadius: 4
+            },
+            {
+              type: 'line',
+              label: 'Average Fuel Cost',
+              data: avgLineData,
+              borderColor: '#10b981',
+              borderWidth: 2,
+              fill: false,
+              tension: 0,
+              pointRadius: 0,
+              borderDash: [5, 5]
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: 'rgba(255,255,255,0.7)' } }
+          },
+          scales: {
+            y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+            x: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+          }
+        }
+      });
+
+      // Table
       const tableBody = document.getElementById('tableBody');
       tableBody.innerHTML = data.slice(-10).reverse().map(d => `
         <tr>
